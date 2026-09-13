@@ -31,19 +31,38 @@
 
   body { display: flex; flex-direction: column; }
 
-  header {
-    padding: 14px 22px;
-    border-bottom: 1px solid var(--panel-border);
-    flex-shrink: 0;
+  /* ---------- Toolbar ---------- */
+  #toolbar {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 16px;
     flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--panel-border);
+    flex-shrink: 0;
   }
-  header h1 { margin: 0; font-size: 20px; font-weight: 650; letter-spacing: 0.01em; }
-  header p { margin: 4px 0 0; font-size: 13px; color: var(--text-dim); }
-  .header-actions { display: flex; gap: 8px; flex-shrink: 0; }
+  #toolbar .btn {
+    padding: 7px 10px;
+    font-size: 12.5px;
+  }
+  #toolbar .segmented {
+    padding: 2px;
+  }
+  #toolbar .segmented button {
+    padding: 6px 11px;
+    font-size: 12.5px;
+  }
+  .toolbar-divider {
+    width: 1px;
+    align-self: stretch;
+    background: var(--panel-border);
+    margin: 2px 4px;
+  }
+  .toggle-btn.active {
+    background: var(--chalk);
+    border-color: var(--chalk);
+    color: #24230f;
+  }
 
   #app { flex: 1; display: flex; min-height: 0; }
 
@@ -158,7 +177,7 @@
 
   #field-wrapper {
     flex: 1; display: flex; align-items: center; justify-content: center;
-    padding: 22px; min-width: 0; min-height: 0;
+    padding: 18px; min-width: 0; min-height: 0;
   }
   #field-container {
     position: relative; width: 100%; max-width: 1000px; aspect-ratio: 105 / 68;
@@ -199,22 +218,26 @@
       flex-direction: row; flex-wrap: wrap; gap: 14px 22px; max-height: 44vh;
     }
     .group { min-width: 200px; }
-    #field-wrapper { padding: 14px; }
+    #field-wrapper { padding: 10px; }
   }
 </style>
 </head>
 <body>
 
-<header>
-  <div>
-    <h1>Tactics Board</h1>
-    <p>Set your lineup, place the opposition, and draw over the pitch to explain a move.</p>
+<div id="toolbar">
+  <div class="segmented" id="mode-toggle">
+    <button data-mode="move" class="active">Move</button>
+    <button data-mode="draw">Draw</button>
   </div>
-  <div class="header-actions">
-    <button class="btn" id="rotate-toggle">Rotate to vertical</button>
-    <button class="btn" id="sidebar-toggle">Hide sidebar</button>
-  </div>
-</header>
+  <button class="btn" id="clear-quick">Clear</button>
+  <div class="toolbar-divider"></div>
+  <button class="btn toggle-btn active" id="ball-quick">Ball</button>
+  <button class="btn toggle-btn active" id="opp-quick">Opponents</button>
+  <button class="btn" id="reset-quick">Reset</button>
+  <div class="toolbar-divider"></div>
+  <button class="btn" id="sidebar-toggle">Hide sidebar</button>
+  <button class="btn" id="rotate-toggle">Rotate to horizontal</button>
+</div>
 
 <div id="app">
   <div id="sidebar">
@@ -233,8 +256,8 @@
         <span class="row-label">Formation</span>
         <select id="team-formation">
           <option value="free">Free (grid)</option>
-          <option value="2-3-1" selected>2-3-1</option>
-          <option value="3-2-1">3-2-1</option>
+          <option value="2-3-1">2-3-1</option>
+          <option value="3-2-1" selected>3-2-1</option>
           <option value="3-1-2">3-1-2</option>
           <option value="2-1-3">2-1-3</option>
           <option value="1-3-2">1-3-2</option>
@@ -265,8 +288,8 @@
           <span class="row-label">Formation</span>
           <select id="opp-formation">
             <option value="free">Free (grid)</option>
-            <option value="2-3-1" selected>2-3-1</option>
-            <option value="3-2-1">3-2-1</option>
+            <option value="2-3-1">2-3-1</option>
+            <option value="3-2-1" selected>3-2-1</option>
             <option value="3-1-2">3-1-2</option>
             <option value="2-1-3">2-1-3</option>
             <option value="1-3-2">1-3-2</option>
@@ -318,14 +341,6 @@
 
     <hr class="div">
 
-    <div class="group">
-      <div class="group-title">Board mode</div>
-      <div class="segmented" id="mode-toggle">
-        <button data-mode="move" class="active">Move pegs</button>
-        <button data-mode="draw">Draw</button>
-      </div>
-    </div>
-
     <div class="group" id="draw-tools">
       <div class="group-title">Marker color</div>
       <div class="swatches" id="swatches"></div>
@@ -346,7 +361,7 @@
   <div id="field-wrapper">
     <div id="field-container">
 
-      <svg class="pitch-svg" id="pitch-svg-h" viewBox="-14 -14 1078 708" preserveAspectRatio="xMidYMid meet">
+      <svg class="pitch-svg hidden" id="pitch-svg-h" viewBox="-14 -14 1078 708" preserveAspectRatio="xMidYMid meet">
         <g id="stripes-h"></g>
         <rect x="2" y="2" width="1046" height="676" fill="none" stroke="#ffffff" stroke-opacity="0.85" stroke-width="3.5"/>
         <line x1="525" y1="2" x2="525" y2="678" stroke="#ffffff" stroke-opacity="0.85" stroke-width="3.5"/>
@@ -368,7 +383,7 @@
         <path d="M1048,668 A10,10 0 0,1 1038,678" fill="none" stroke="#ffffff" stroke-opacity="0.85" stroke-width="3"/>
       </svg>
 
-      <svg class="pitch-svg hidden" id="pitch-svg-v" viewBox="-14 -14 708 1078" preserveAspectRatio="xMidYMid meet">
+      <svg class="pitch-svg" id="pitch-svg-v" viewBox="-14 -14 708 1078" preserveAspectRatio="xMidYMid meet">
         <g id="stripes-v"></g>
         <rect x="2" y="2" width="676" height="1046" fill="none" stroke="#ffffff" stroke-opacity="0.85" stroke-width="3.5"/>
         <line x1="2" y1="525" x2="678" y2="525" stroke="#ffffff" stroke-opacity="0.85" stroke-width="3.5"/>
@@ -419,8 +434,9 @@
     drawWidth: 5,
   };
 
-  let orientation = 'horizontal'; // 'horizontal' | 'vertical'
+  let orientation = 'vertical'; // 'horizontal' | 'vertical'
   let pegs = [];
+  let baselinePegs = null; // snapshot Reset returns to: last formula layout OR last loaded save
   let selectedPegId = null;
   let strokes = [];
   let currentStroke = null;
@@ -436,21 +452,16 @@
   const teamFormationSel = document.getElementById('team-formation');
   const oppFormationSel = document.getElementById('opp-formation');
 
-  (function buildStripes(groupEl, vertical) {
+  (function(groupEl) {
     const n = 10;
     for (let i = 0; i < n; i++) {
       const rect = document.createElementNS(svgNS, 'rect');
-      if (!vertical) {
-        rect.setAttribute('x', i * 105); rect.setAttribute('y', 0);
-        rect.setAttribute('width', 105); rect.setAttribute('height', 680);
-      } else {
-        rect.setAttribute('x', 0); rect.setAttribute('y', i * 105);
-        rect.setAttribute('width', 680); rect.setAttribute('height', 105);
-      }
+      rect.setAttribute('x', i * 105); rect.setAttribute('y', 0);
+      rect.setAttribute('width', 105); rect.setAttribute('height', 680);
       rect.setAttribute('fill', i % 2 === 0 ? '#2c7d34' : '#307f39');
       groupEl.appendChild(rect);
     }
-  })(document.getElementById('stripes-h'), false);
+  })(document.getElementById('stripes-h'));
 
   (function(groupEl) {
     const n = 10;
@@ -464,7 +475,6 @@
   })(document.getElementById('stripes-v'));
 
   // ---------------- Canonical <-> screen mapping ----------------
-  // Canonical: x = 0 (own goal) .. 100 (opponent goal); y = 0..100 across the pitch.
   function toScreen(x, y) {
     if (orientation === 'vertical') return { x: y, y: 100 - x };
     return { x: x, y: y };
@@ -472,6 +482,10 @@
   function toCanonical(dx, dy) {
     if (orientation === 'vertical') return { x: 100 - dy, y: dx };
     return { x: dx, y: dy };
+  }
+
+  function clonePegs(arr) {
+    return arr.map(p => ({ id: p.id, type: p.type, number: p.number, x: p.x, y: p.y }));
   }
 
   function gridPositions(n, xStart, xEnd, yStart, yEnd) {
@@ -517,6 +531,14 @@
       oppPositions().forEach((p, i) => { pegs.push({ id: id++, type: 'opp', number: i + 1, x: p.x, y: p.y }); });
     }
     if (state.showBall) pegs.push({ id: id++, type: 'ball', number: null, x: 50, y: 50 });
+    baselinePegs = clonePegs(pegs);
+    selectedPegId = null;
+    renderPegs();
+  }
+
+  function resetToBaseline() {
+    if (!baselinePegs) { regenerateAll(); return; }
+    pegs = clonePegs(baselinePegs);
     selectedPegId = null;
     renderPegs();
   }
@@ -611,8 +633,10 @@
       });
       ctx.stroke();
     });
-    document.getElementById('undo-btn').disabled = strokes.length === 0;
-    document.getElementById('clear-btn').disabled = strokes.length === 0;
+    const disabled = strokes.length === 0;
+    document.getElementById('undo-btn').disabled = disabled;
+    document.getElementById('clear-btn').disabled = disabled;
+    document.getElementById('clear-quick').disabled = disabled;
   }
 
   function addPoint(clientX, clientY) {
@@ -637,8 +661,10 @@
     canvas.addEventListener(evt, () => { currentStroke = null; });
   });
 
+  function clearDrawing() { strokes = []; redrawStrokes(); }
   document.getElementById('undo-btn').addEventListener('click', () => { strokes.pop(); redrawStrokes(); });
-  document.getElementById('clear-btn').addEventListener('click', () => { strokes = []; redrawStrokes(); });
+  document.getElementById('clear-btn').addEventListener('click', clearDrawing);
+  document.getElementById('clear-quick').addEventListener('click', clearDrawing);
 
   function wireStepper(id, key, min, max, onChange) {
     const wrap = document.getElementById(id);
@@ -664,18 +690,33 @@
     regenerateAll();
   });
 
+  // ---------------- Opponents / ball toggles (sidebar + toolbar stay in sync) ----------------
   const oppToggle = document.getElementById('opp-toggle');
   const oppSub = document.getElementById('opp-sub');
-  oppToggle.addEventListener('change', () => {
-    state.showOpponents = oppToggle.checked;
-    oppSub.classList.toggle('open', state.showOpponents);
-    regenerateAll();
-  });
-
+  const oppQuick = document.getElementById('opp-quick');
   const ballToggle = document.getElementById('ball-toggle');
-  ballToggle.addEventListener('change', () => { state.showBall = ballToggle.checked; regenerateAll(); });
+  const ballQuick = document.getElementById('ball-quick');
 
-  document.getElementById('reset-positions').addEventListener('click', regenerateAll);
+  function setShowOpponents(val) {
+    state.showOpponents = val;
+    oppToggle.checked = val;
+    oppQuick.classList.toggle('active', val);
+    oppSub.classList.toggle('open', val);
+    regenerateAll();
+  }
+  function setShowBall(val) {
+    state.showBall = val;
+    ballToggle.checked = val;
+    ballQuick.classList.toggle('active', val);
+    regenerateAll();
+  }
+  oppToggle.addEventListener('change', () => setShowOpponents(oppToggle.checked));
+  oppQuick.addEventListener('click', () => setShowOpponents(!state.showOpponents));
+  ballToggle.addEventListener('change', () => setShowBall(ballToggle.checked));
+  ballQuick.addEventListener('click', () => setShowBall(!state.showBall));
+
+  document.getElementById('reset-positions').addEventListener('click', resetToBaseline);
+  document.getElementById('reset-quick').addEventListener('click', resetToBaseline);
 
   const modeToggle = document.getElementById('mode-toggle');
   modeToggle.querySelectorAll('button').forEach(btn => {
@@ -773,12 +814,15 @@
     document.getElementById('team-val').textContent = state.teamCount;
     document.getElementById('opp-val').textContent = state.opponentCount;
     oppToggle.checked = state.showOpponents;
+    oppQuick.classList.toggle('active', state.showOpponents);
     ballToggle.checked = state.showBall;
+    ballQuick.classList.toggle('active', state.showBall);
     oppSub.classList.toggle('open', state.showOpponents);
     if (saved.teamFormation) teamFormationSel.value = saved.teamFormation;
     if (saved.oppFormation) oppFormationSel.value = saved.oppFormation;
-    orientation = saved.orientation === 'vertical' ? 'vertical' : 'horizontal';
+    orientation = saved.orientation === 'horizontal' ? 'horizontal' : 'vertical';
     pegs = saved.pegs.map((p, i) => ({ id: i, type: p.type, number: p.number, x: p.x, y: p.y }));
+    baselinePegs = clonePegs(pegs);
     selectedPegId = null;
     applyOrientation();
   }
@@ -860,8 +904,8 @@
   window.addEventListener('resize', resizeCanvas);
 
   refreshSavesList();
-  resizeCanvas();
   regenerateAll();
+  applyOrientation();
 
 })();
 </script>
