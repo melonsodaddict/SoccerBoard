@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>Tactics Board</title>
+<style>
+  :root{
+    --bg: #12160f;
+    --panel: #1b2117;
+    --panel-border: #2b3426;
+    --text: #eef2ea;
+    --text-dim: #93a08d;
+    --chalk: #f2c14e;
+    --chalk-dim: #7a6530;
+    --team: #3f7ff2;
+    --team-dark: #1d3f8a;
+    --opp: #e14b4b;
+    --opp-dark: #8c1f1f;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    height: 100%;
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif;
+  }
+
+  body { display: flex; flex-direction: column; }
+
+  header {
+    padding: 14px 22px;
+    border-bottom: 1px solid var(--panel-border);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  header h1 { margin: 0; font-size: 20px; font-weight: 650; letter-spacing: 0.01em; }
+  header p { margin: 4px 0 0; font-size: 13px; color: var(--text-dim); }
+  .header-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+  #app { flex: 1; display: flex; min-height: 0; }
+
+  #sidebar {
+    width: 268px;
+    flex-shrink: 0;
+    background: var(--panel);
+    border-right: 1px solid var(--panel-border);
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  #sidebar.hidden { display: none; }
+
+  .group { display: flex; flex-direction: column; gap: 10px; }
+  .group-title { font-size: 12.5px; font-weight: 600; color: var(--text); }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .row-label { font-size: 13px; color: var(--text-dim); }
+  hr.div { border: none; border-top: 1px solid var(--panel-border); margin: 0; }
+
+  select, input[type="text"] {
+    background: #10140d;
+    border: 1px solid var(--panel-border);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 13px;
+    font-family: inherit;
+    min-width: 0;
+  }
+  select { flex: 1; }
+  input[type="text"] { flex: 1; }
+
+  .stepper {
+    display: flex;
+    align-items: center;
+    background: #10140d;
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .stepper button {
+    width: 28px; height: 28px; border: none; background: transparent;
+    color: var(--text); font-size: 16px; cursor: pointer; line-height: 1;
+  }
+  .stepper button:hover { background: #202920; }
+  .stepper button:active { background: #283628; }
+  .stepper .val { width: 26px; text-align: center; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+
+  .switch { position: relative; width: 38px; height: 22px; flex-shrink: 0; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .switch .track {
+    position: absolute; inset: 0; background: #384334; border-radius: 999px;
+    transition: background 0.15s ease; cursor: pointer;
+  }
+  .switch .track::before {
+    content: ""; position: absolute; width: 16px; height: 16px; left: 3px; top: 3px;
+    background: #cfd6ca; border-radius: 50%; transition: transform 0.15s ease, background 0.15s ease;
+  }
+  .switch input:checked + .track { background: var(--chalk-dim); }
+  .switch input:checked + .track::before { transform: translateX(16px); background: var(--chalk); }
+
+  .collapsible {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-left: 2px;
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition: max-height 0.15s ease, opacity 0.15s ease;
+  }
+  .collapsible.open { max-height: 100px; opacity: 1; }
+
+  .segmented {
+    display: flex; background: #10140d; border: 1px solid var(--panel-border);
+    border-radius: 8px; padding: 2px; gap: 2px;
+  }
+  .segmented button {
+    flex: 1; border: none; background: transparent; color: var(--text-dim);
+    font-size: 13px; font-weight: 550; padding: 7px 0; border-radius: 6px; cursor: pointer;
+  }
+  .segmented button.active { background: var(--chalk); color: #24230f; }
+
+  .swatches { display: flex; gap: 8px; }
+  .swatch { width: 24px; height: 24px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; padding: 0; }
+  .swatch.active { border-color: var(--text); }
+
+  .widths { display: flex; gap: 8px; }
+  .width-btn {
+    flex: 1; height: 28px; border-radius: 6px; border: 1px solid var(--panel-border);
+    background: #10140d; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+  .width-btn.active { border-color: var(--chalk); background: #221d0f; }
+  .width-btn span { display: block; width: 16px; border-radius: 999px; background: var(--text); }
+
+  .btn {
+    border: 1px solid var(--panel-border); background: #10140d; color: var(--text);
+    font-size: 13px; font-weight: 550; padding: 9px 10px; border-radius: 8px; cursor: pointer; text-align: center;
+    white-space: nowrap;
+  }
+  .btn:hover { background: #1a221a; }
+  .btn:disabled { opacity: 0.4; cursor: default; }
+  .btn:disabled:hover { background: #10140d; }
+  .btn-row { display: flex; gap: 8px; }
+  .btn-row .btn { flex: 1; }
+
+  #storage-note { font-size: 12px; color: var(--text-dim); line-height: 1.4; margin: 0; }
+
+  #field-wrapper {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    padding: 22px; min-width: 0; min-height: 0;
+  }
+  #field-container {
+    position: relative; width: 100%; max-width: 1000px; aspect-ratio: 105 / 68;
+    max-height: 100%; border-radius: 6px; overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.45); touch-action: none;
+  }
+  #field-container.vertical { aspect-ratio: 68 / 105; max-width: 620px; }
+
+  .pitch-svg, #draw-canvas, #pegs-layer { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .pitch-svg { display: block; }
+  .pitch-svg.hidden { display: none; }
+  #draw-canvas { pointer-events: none; cursor: crosshair; }
+  #pegs-layer { pointer-events: auto; }
+  #pegs-layer.locked { pointer-events: none; }
+
+  .peg {
+    position: absolute;
+    width: var(--peg-size, 30px); height: var(--peg-size, 30px);
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: calc(var(--peg-size, 30px) * 0.42);
+    font-weight: 700; color: white;
+    cursor: grab; user-select: none;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+    touch-action: none;
+  }
+  .peg:active { cursor: grabbing; }
+  .peg.team { background: var(--team); border: 2px solid var(--team-dark); }
+  .peg.opp { background: var(--opp); border: 2px solid var(--opp-dark); }
+  .peg.ball { background: #f5f5f0; border: 2px solid #24230f; font-size: calc(var(--peg-size, 30px) * 0.6); }
+  .peg.selected { box-shadow: 0 0 0 3px var(--chalk), 0 2px 8px rgba(0,0,0,0.6); z-index: 5; }
+
+  @media (max-width: 860px) {
+    #app { flex-direction: column; }
+    #sidebar {
+      width: 100%; border-right: none; border-bottom: 1px solid var(--panel-border);
+      flex-direction: row; flex-wrap: wrap; gap: 14px 22px; max-height: 44vh;
+    }
+    .group { min-width: 200px; }
+    #field-wrapper { padding: 14px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Tactics Board</h1>
+    <p>Set your lineup, place the opposition, and draw over the pitch to explain a move.</p>
+  </div>
+  <div class="header-actions">
+    <button class="btn" id="rotate-toggle">Rotate to vertical</button>
+    <button class="btn" id="sidebar-toggle">Hide sidebar</button>
+  </div>
+</header>
+
+<div id="app">
+  <div id="sidebar">
+
+    <div class="group">
+      <div class="group-title">Your team</div>
+      <div class="row">
+        <span class="row-label">Players</span>
+        <div class="stepper" id="team-stepper">
+          <button data-dir="-1" aria-label="Decrease">&minus;</button>
+          <span class="val" id="team-val">7</span>
+          <button data-dir="1" aria-label="Increase">+</button>
+        </div>
+      </div>
+      <div class="row">
+        <span class="row-label">Formation</span>
+        <select id="team-formation">
+          <option value="free">Free (grid)</option>
+          <option value="2-3-1" selected>2-3-1</option>
+          <option value="3-2-1">3-2-1</option>
+          <option value="3-1-2">3-1-2</option>
+          <option value="2-1-3">2-1-3</option>
+          <option value="1-3-2">1-3-2</option>
+        </select>
+      </div>
+    </div>
+
+    <hr class="div">
+
+    <div class="group">
+      <div class="row">
+        <span class="row-label">Show opponents</span>
+        <label class="switch">
+          <input type="checkbox" id="opp-toggle" checked>
+          <span class="track"></span>
+        </label>
+      </div>
+      <div class="collapsible open" id="opp-sub">
+        <div class="row">
+          <span class="row-label">Opponent players</span>
+          <div class="stepper" id="opp-stepper">
+            <button data-dir="-1" aria-label="Decrease">&minus;</button>
+            <span class="val" id="opp-val">7</span>
+            <button data-dir="1" aria-label="Increase">+</button>
+          </div>
+        </div>
+        <div class="row">
+          <span class="row-label">Formation</span>
+          <select id="opp-formation">
+            <option value="free">Free (grid)</option>
+            <option value="2-3-1" selected>2-3-1</option>
+            <option value="3-2-1">3-2-1</option>
+            <option value="3-1-2">3-1-2</option>
+            <option value="2-1-3">2-1-3</option>
+            <option value="1-3-2">1-3-2</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <hr class="div">
+
+    <div class="group">
+      <div class="row">
+        <span class="row-label">Show ball</span>
+        <label class="switch">
+          <input type="checkbox" id="ball-toggle" checked>
+          <span class="track"></span>
+        </label>
+      </div>
+    </div>
+
+    <hr class="div">
+
+    <div class="group">
+      <button class="btn" id="reset-positions">Reset positions</button>
+    </div>
+
+    <hr class="div">
+
+    <div class="group">
+      <div class="group-title">Saved lineups</div>
+      <div class="row">
+        <input type="text" id="save-name" placeholder="Lineup name">
+        <button class="btn" id="save-btn">Save</button>
+      </div>
+      <div class="row">
+        <select id="saves-select"><option value="">&mdash; none saved &mdash;</option></select>
+      </div>
+      <div class="btn-row">
+        <button class="btn" id="load-btn" disabled>Load</button>
+        <button class="btn" id="delete-btn" disabled>Delete</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn" id="export-btn">Export file</button>
+        <button class="btn" id="import-btn">Import file</button>
+      </div>
+      <input type="file" id="import-file" accept="application/json" style="display:none;">
+      <p id="storage-note" style="display:none;">Browser storage isn't available in this preview, so saved lineups won't survive a reload here. Open this file directly in your browser (not Claude's preview) for saving to work, or use Export/Import to keep a copy either way.</p>
+    </div>
+
+    <hr class="div">
+
+    <div class="group">
+      <div class="group-title">Board mode</div>
+      <div class="segmented" id="mode-toggle">
+        <button data-mode="move" class="active">Move pegs</button>
+        <button data-mode="draw">Draw</button>
+      </div>
+    </div>
+
+    <div class="group" id="draw-tools">
+      <div class="group-title">Marker color</div>
+      <div class="swatches" id="swatches"></div>
+      <div class="group-title" style="margin-top:2px;">Line width</div>
+      <div class="widths" id="widths">
+        <button class="width-btn" data-w="3"><span style="height:3px;"></span></button>
+        <button class="width-btn active" data-w="5"><span style="height:5px;"></span></button>
+        <button class="width-btn" data-w="8"><span style="height:8px;"></span></button>
+      </div>
+      <div class="btn-row" style="margin-top:4px;">
+        <button class="btn" id="undo-btn" disabled>Undo</button>
+        <button class="btn" id="clear-btn" disabled>Clear</button>
+      </div>
+    </div>
+
+  </div>
+
+  <div id="field-wrapper">
+    <div id="field-container">
+
+      <svg class="pitch-svg" id="pitch-svg-h" viewBox="-14 -14 1078 708" preserveAspectRatio="xMidYMid meet">
+        <g id="stripes-h"></g>
+        <rect x="2" y="2" width="1046" height="676" fill="none" stroke="#ffffff" stroke-opacity="0.85" stroke-width="3.5"/>
+        <line x1="525" y1="2" x2="525" y2="678" stroke="#ffffff" stroke-opacity="0.85" stroke-width="3.5"/>
+        <circle cx="525" cy="340" r="91.5" fill="none" stroke="#ffffff" stroke-opacity="0.85" stroke-width="3.5"/>
+        <circle cx="525" cy="340" r="4.5" fill="#ffffff" fill-opacity="0.85"/>
+        <rect x="2" y="138.4" width="163" height="403.2" fill="none" stroke="#ffffff" stroke-opacity="0.85" stroke-width="3.5"/>
+        <rect x="2" y="248.4" width="53" height="183.2" fill="none" stroke="#ffffff" stroke-opacity="0.85" stroke-width="3.5"/>
+        <circle cx="110" cy="340" r="4.5" fill="#ffffff" fill-opacity="0.85"/>
+        <path d="M165,266.85 A91.5,91.5 0 0,1 165,413.15" fill="none" stroke="#ffffff" stroke-opacity="0.85" stroke-width="3.5"/>
+        <rect x="885" y="138.4" width="163" height="403.2" fill="none" stroke="#ffffff" stroke-opacity="0.85" stroke-width="3.5"/>
+        <rect x="995" y="248.4" width="53" height="183.2" fill="none" stroke="#ffffff" stroke-opacity="0.85" stroke-width="3.5"/>
+        <circle cx="940" cy="340" r="4.5" fill="#ffffff" fill-opacity="0.85"/>
+        <path d="M885,266.85 A91.5,91.5 0 0,0 885,413.15" fill="none" stroke="#ffffff" stroke-opacity="0.85" stroke-width="3.5"/>
+        <rect x="-14" y="303.4" width="16" height="73.2" fill="none" stroke="#ffffff" stroke-opacity="0.85" stroke-width="3"/>
+        <rect x="1048" y="303.4" width="16" height="73.2" fill="none" stroke="#ffffff" stroke-opacity="0.85" stroke-width="3"/>
+        <path d="M2,12 A10,10 0 0,1 12,2" fill="none" stroke="#ffffff" stroke-opacity="0.85" stroke-width="3"/>
+        <path d="M1038,2 A10,10 0 0,1 1048,12" fill="none" stroke="#ffffff" stroke-opacity="0.85" stroke-width="3"/>
+        <path d="M12,678 A10,10 0 0,1 2,668" fill="none" stroke="#ffffff" stroke-opacity="0.85" stroke-width="3"/>
+        <path d="M1048,668 A10,10 0 0,1 1038,678" fill="none" stroke="#ffffff" stroke-opacity="0.85" stroke-width="3"/>
+      </svg>
+
+      <svg class="pitch-svg hidden" id="pitch-svg-v" viewBox="-14 -14 708 1078" preserveAspectRatio="xMidYMid meet">
+        <g id="stripes-v"></g>
+        <rect x="2" y="2" width="676" height="1046" fill="none" stroke="#ffffff" stroke-opacity="0.85" stroke-width="3.5"/>
+        <line x1="2" y1="525" x2="678" y2="525" stroke="#ffffff" stroke-opacity="0.85" stroke-width="3.5"/>
+        <circle cx="340" cy="525" r="91.5" fill="none" stroke="#ffffff" stroke-opacity="0.85" stroke-width="3.5"/>
+        <circle cx="340" cy="525" r="4.5" fill="#ffffff" fill-opacity="0.85"/>
+        <rect x="138.4" y="2" width="403.2" height="163" fill="none" stroke="#ffffff" stroke-opacity="0.85" stroke-width="3.5"/>
+        <rect x="248.4" y="2" width="183.2" height="53" fill="none" stroke="#ffffff" stroke-opacity="0.85" stroke-width="3.5"/>
+        <circle cx="340" cy="110" r="4.5" fill="#ffffff" fill-opacity="0.85"/>
+        <path d="M266.85,165 A91.5,91.5 0 0,0 413.15,165" fill="none" stroke="#ffffff" stroke-opacity="0.85" stroke-width="3.5"/>
+        <rect x="138.4" y="885" width="403.2" height="163" fill="none" stroke="#ffffff" stroke-opacity="0.85" stroke-width="3.5"/>
+        <rect x="248.4" y="995" width="183.2" height="53" fill="none" stroke="#ffffff" stroke-opacity="0.85" stroke-width="3.5"/>
+        <circle cx="340" cy="940" r="4.5" fill="#ffffff" fill-opacity="0.85"/>
+        <path d="M266.85,885 A91.5,91.5 0 0,1 413.15,885" fill="none" stroke="#ffffff" stroke-opacity="0.85" stroke-width="3.5"/>
+        <rect x="303.4" y="-14" width="73.2" height="16" fill="none" stroke="#ffffff" stroke-opacity="0.85" stroke-width="3"/>
+        <rect x="303.4" y="1048" width="73.2" height="16" fill="none" stroke="#ffffff" stroke-opacity="0.85" stroke-width="3"/>
+        <path d="M12,2 A10,10 0 0,0 2,12" fill="none" stroke="#ffffff" stroke-opacity="0.85" stroke-width="3"/>
+        <path d="M2,1038 A10,10 0 0,0 12,1048" fill="none" stroke="#ffffff" stroke-opacity="0.85" stroke-width="3"/>
+        <path d="M678,12 A10,10 0 0,0 668,2" fill="none" stroke="#ffffff" stroke-opacity="0.85" stroke-width="3"/>
+        <path d="M668,1048 A10,10 0 0,0 678,1038" fill="none" stroke="#ffffff" stroke-opacity="0.85" stroke-width="3"/>
+      </svg>
+
+      <canvas id="draw-canvas"></canvas>
+      <div id="pegs-layer"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+
+  const svgNS = 'http://www.w3.org/2000/svg';
+
+  const FORMATIONS = {
+    '2-3-1': [ {x:8,y:50}, {x:18,y:32},{x:18,y:68}, {x:32,y:20},{x:32,y:50},{x:32,y:80}, {x:45,y:50} ],
+    '3-2-1': [ {x:8,y:50}, {x:17,y:20},{x:17,y:50},{x:17,y:80}, {x:30,y:35},{x:30,y:65}, {x:45,y:50} ],
+    '3-1-2': [ {x:8,y:50}, {x:17,y:20},{x:17,y:50},{x:17,y:80}, {x:30,y:50}, {x:42,y:35},{x:42,y:65} ],
+    '2-1-3': [ {x:8,y:50}, {x:17,y:32},{x:17,y:68}, {x:30,y:50}, {x:42,y:20},{x:42,y:50},{x:42,y:80} ],
+    '1-3-2': [ {x:8,y:50}, {x:16,y:50}, {x:30,y:20},{x:30,y:50},{x:30,y:80}, {x:44,y:35},{x:44,y:65} ]
+  };
+
+  const state = {
+    teamCount: 7,
+    showOpponents: true,
+    opponentCount: 7,
+    showBall: true,
+    mode: 'move',
+    drawColor: '#f5d442',
+    drawWidth: 5,
+  };
+
+  let orientation = 'horizontal'; // 'horizontal' | 'vertical'
+  let pegs = [];
+  let selectedPegId = null;
+  let strokes = [];
+  let currentStroke = null;
+
+  const COLORS = ['#f5d442', '#ffffff', '#ff5252', '#42c9ff'];
+
+  const fieldContainer = document.getElementById('field-container');
+  const pegsLayer = document.getElementById('pegs-layer');
+  const canvas = document.getElementById('draw-canvas');
+  const ctx = canvas.getContext('2d');
+  const svgH = document.getElementById('pitch-svg-h');
+  const svgV = document.getElementById('pitch-svg-v');
+  const teamFormationSel = document.getElementById('team-formation');
+  const oppFormationSel = document.getElementById('opp-formation');
+
+  (function buildStripes(groupEl, vertical) {
+    const n = 10;
+    for (let i = 0; i < n; i++) {
+      const rect = document.createElementNS(svgNS, 'rect');
+      if (!vertical) {
+        rect.setAttribute('x', i * 105); rect.setAttribute('y', 0);
+        rect.setAttribute('width', 105); rect.setAttribute('height', 680);
+      } else {
+        rect.setAttribute('x', 0); rect.setAttribute('y', i * 105);
+        rect.setAttribute('width', 680); rect.setAttribute('height', 105);
+      }
+      rect.setAttribute('fill', i % 2 === 0 ? '#2c7d34' : '#307f39');
+      groupEl.appendChild(rect);
+    }
+  })(document.getElementById('stripes-h'), false);
+
+  (function(groupEl) {
+    const n = 10;
+    for (let i = 0; i < n; i++) {
+      const rect = document.createElementNS(svgNS, 'rect');
+      rect.setAttribute('x', 0); rect.setAttribute('y', i * 105);
+      rect.setAttribute('width', 680); rect.setAttribute('height', 105);
+      rect.setAttribute('fill', i % 2 === 0 ? '#2c7d34' : '#307f39');
+      groupEl.appendChild(rect);
+    }
+  })(document.getElementById('stripes-v'));
+
+  // ---------------- Canonical <-> screen mapping ----------------
+  // Canonical: x = 0 (own goal) .. 100 (opponent goal); y = 0..100 across the pitch.
+  function toScreen(x, y) {
+    if (orientation === 'vertical') return { x: y, y: 100 - x };
+    return { x: x, y: y };
+  }
+  function toCanonical(dx, dy) {
+    if (orientation === 'vertical') return { x: 100 - dy, y: dx };
+    return { x: dx, y: dy };
+  }
+
+  function gridPositions(n, xStart, xEnd, yStart, yEnd) {
+    if (n <= 0) return [];
+    const xRange = xEnd - xStart;
+    const yRange = yEnd - yStart;
+    let cols = Math.max(1, Math.round(Math.sqrt(n * (xRange / yRange))));
+    cols = Math.min(cols, n);
+    const rows = Math.ceil(n / cols);
+    const positions = [];
+    for (let i = 0; i < n; i++) {
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const x = cols === 1 ? (xStart + xEnd) / 2 : xStart + (col + 0.5) * (xRange / cols);
+      const y = rows === 1 ? (yStart + yEnd) / 2 : yStart + (row + 0.5) * (yRange / rows);
+      positions.push({ x, y });
+    }
+    return positions;
+  }
+
+  function formationPositions(key, mirrored) {
+    const layout = FORMATIONS[key];
+    if (!layout) return null;
+    return layout.map(p => mirrored ? { x: 100 - p.x, y: p.y } : { x: p.x, y: p.y });
+  }
+
+  function teamPositions() {
+    const sel = teamFormationSel.value;
+    if (sel !== 'free' && FORMATIONS[sel] && state.teamCount === 7) return formationPositions(sel, false);
+    return gridPositions(state.teamCount, 6, 46, 8, 92);
+  }
+  function oppPositions() {
+    const sel = oppFormationSel.value;
+    if (sel !== 'free' && FORMATIONS[sel] && state.opponentCount === 7) return formationPositions(sel, true);
+    return gridPositions(state.opponentCount, 54, 94, 8, 92);
+  }
+
+  function regenerateAll() {
+    pegs = [];
+    let id = 0;
+    teamPositions().forEach((p, i) => { pegs.push({ id: id++, type: 'team', number: i + 1, x: p.x, y: p.y }); });
+    if (state.showOpponents) {
+      oppPositions().forEach((p, i) => { pegs.push({ id: id++, type: 'opp', number: i + 1, x: p.x, y: p.y }); });
+    }
+    if (state.showBall) pegs.push({ id: id++, type: 'ball', number: null, x: 50, y: 50 });
+    selectedPegId = null;
+    renderPegs();
+  }
+
+  function renderPegs() {
+    pegsLayer.innerHTML = '';
+    pegs.forEach(peg => {
+      const el = document.createElement('div');
+      el.className = 'peg ' + peg.type + (peg.id === selectedPegId ? ' selected' : '');
+      const s = toScreen(peg.x, peg.y);
+      el.style.left = s.x + '%';
+      el.style.top = s.y + '%';
+      el.textContent = peg.type === 'ball' ? '\u26BD' : peg.number;
+      attachDrag(el, peg);
+      pegsLayer.appendChild(el);
+    });
+  }
+
+  function selectPeg(id) {
+    selectedPegId = id;
+    Array.from(pegsLayer.children).forEach((el, i) => { el.classList.toggle('selected', pegs[i].id === id); });
+  }
+
+  function attachDrag(el, peg) {
+    el.addEventListener('pointerdown', (e) => {
+      if (state.mode !== 'move') return;
+      e.preventDefault();
+      e.stopPropagation();
+      el.setPointerCapture(e.pointerId);
+      selectPeg(peg.id);
+
+      const onMove = (ev) => {
+        const rect = fieldContainer.getBoundingClientRect();
+        let dx = ((ev.clientX - rect.left) / rect.width) * 100;
+        let dy = ((ev.clientY - rect.top) / rect.height) * 100;
+        dx = Math.min(99, Math.max(1, dx));
+        dy = Math.min(99, Math.max(1, dy));
+        el.style.left = dx + '%';
+        el.style.top = dy + '%';
+        const c = toCanonical(dx, dy);
+        peg.x = c.x; peg.y = c.y;
+      };
+      const onUp = () => {
+        el.removeEventListener('pointermove', onMove);
+        el.removeEventListener('pointerup', onUp);
+        el.removeEventListener('pointercancel', onUp);
+      };
+      el.addEventListener('pointermove', onMove);
+      el.addEventListener('pointerup', onUp);
+      el.addEventListener('pointercancel', onUp);
+    });
+  }
+
+  fieldContainer.addEventListener('pointerdown', (e) => {
+    if (e.target === fieldContainer || e.target.closest('svg')) {
+      selectedPegId = null;
+      Array.from(pegsLayer.children).forEach(el => el.classList.remove('selected'));
+    }
+  });
+
+  function updatePegSize() {
+    const rect = fieldContainer.getBoundingClientRect();
+    const size = Math.max(18, Math.min(34, rect.width * 0.032));
+    fieldContainer.style.setProperty('--peg-size', size + 'px');
+  }
+
+  function resizeCanvas() {
+    const rect = fieldContainer.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    canvas.style.width = rect.width + 'px';
+    canvas.style.height = rect.height + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    redrawStrokes();
+    updatePegSize();
+  }
+
+  function redrawStrokes() {
+    const rect = fieldContainer.getBoundingClientRect();
+    ctx.clearRect(0, 0, rect.width, rect.height);
+    strokes.forEach(s => {
+      if (s.points.length < 1) return;
+      ctx.strokeStyle = s.color;
+      ctx.lineWidth = s.width;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      s.points.forEach((p, i) => {
+        const px = p.x * rect.width, py = p.y * rect.height;
+        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      });
+      ctx.stroke();
+    });
+    document.getElementById('undo-btn').disabled = strokes.length === 0;
+    document.getElementById('clear-btn').disabled = strokes.length === 0;
+  }
+
+  function addPoint(clientX, clientY) {
+    const rect = fieldContainer.getBoundingClientRect();
+    currentStroke.points.push({ x: (clientX - rect.left) / rect.width, y: (clientY - rect.top) / rect.height });
+  }
+
+  canvas.addEventListener('pointerdown', (e) => {
+    if (state.mode !== 'draw') return;
+    canvas.setPointerCapture(e.pointerId);
+    currentStroke = { color: state.drawColor, width: state.drawWidth, points: [] };
+    addPoint(e.clientX, e.clientY);
+    strokes.push(currentStroke);
+    redrawStrokes();
+  });
+  canvas.addEventListener('pointermove', (e) => {
+    if (!currentStroke) return;
+    addPoint(e.clientX, e.clientY);
+    redrawStrokes();
+  });
+  ['pointerup', 'pointerleave', 'pointercancel'].forEach(evt => {
+    canvas.addEventListener(evt, () => { currentStroke = null; });
+  });
+
+  document.getElementById('undo-btn').addEventListener('click', () => { strokes.pop(); redrawStrokes(); });
+  document.getElementById('clear-btn').addEventListener('click', () => { strokes = []; redrawStrokes(); });
+
+  function wireStepper(id, key, min, max, onChange) {
+    const wrap = document.getElementById(id);
+    const valEl = wrap.querySelector('.val');
+    wrap.querySelectorAll('button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const dir = parseInt(btn.dataset.dir, 10);
+        state[key] = Math.min(max, Math.max(min, state[key] + dir));
+        valEl.textContent = state[key];
+        onChange();
+      });
+    });
+  }
+  wireStepper('team-stepper', 'teamCount', 1, 11, () => { teamFormationSel.value = 'free'; regenerateAll(); });
+  wireStepper('opp-stepper', 'opponentCount', 1, 11, () => { oppFormationSel.value = 'free'; regenerateAll(); });
+
+  teamFormationSel.addEventListener('change', () => {
+    if (teamFormationSel.value !== 'free') { state.teamCount = 7; document.getElementById('team-val').textContent = 7; }
+    regenerateAll();
+  });
+  oppFormationSel.addEventListener('change', () => {
+    if (oppFormationSel.value !== 'free') { state.opponentCount = 7; document.getElementById('opp-val').textContent = 7; }
+    regenerateAll();
+  });
+
+  const oppToggle = document.getElementById('opp-toggle');
+  const oppSub = document.getElementById('opp-sub');
+  oppToggle.addEventListener('change', () => {
+    state.showOpponents = oppToggle.checked;
+    oppSub.classList.toggle('open', state.showOpponents);
+    regenerateAll();
+  });
+
+  const ballToggle = document.getElementById('ball-toggle');
+  ballToggle.addEventListener('change', () => { state.showBall = ballToggle.checked; regenerateAll(); });
+
+  document.getElementById('reset-positions').addEventListener('click', regenerateAll);
+
+  const modeToggle = document.getElementById('mode-toggle');
+  modeToggle.querySelectorAll('button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.mode = btn.dataset.mode;
+      modeToggle.querySelectorAll('button').forEach(b => b.classList.toggle('active', b === btn));
+      pegsLayer.classList.toggle('locked', state.mode !== 'move');
+      canvas.style.pointerEvents = state.mode === 'draw' ? 'auto' : 'none';
+    });
+  });
+
+  const swatchesEl = document.getElementById('swatches');
+  COLORS.forEach((c, i) => {
+    const b = document.createElement('button');
+    b.className = 'swatch' + (i === 0 ? ' active' : '');
+    b.style.background = c;
+    b.addEventListener('click', () => {
+      state.drawColor = c;
+      swatchesEl.querySelectorAll('.swatch').forEach(s => s.classList.remove('active'));
+      b.classList.add('active');
+    });
+    swatchesEl.appendChild(b);
+  });
+
+  document.getElementById('widths').querySelectorAll('.width-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.drawWidth = parseInt(btn.dataset.w, 10);
+      document.querySelectorAll('.width-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+
+  // ---------------- Sidebar toggle ----------------
+  const sidebar = document.getElementById('sidebar');
+  const sidebarToggle = document.getElementById('sidebar-toggle');
+  sidebarToggle.addEventListener('click', () => {
+    const hidden = sidebar.classList.toggle('hidden');
+    sidebarToggle.textContent = hidden ? 'Show sidebar' : 'Hide sidebar';
+  });
+
+  // ---------------- Rotate field ----------------
+  const rotateToggle = document.getElementById('rotate-toggle');
+  function applyOrientation() {
+    fieldContainer.classList.toggle('vertical', orientation === 'vertical');
+    svgH.classList.toggle('hidden', orientation !== 'horizontal');
+    svgV.classList.toggle('hidden', orientation !== 'vertical');
+    rotateToggle.textContent = orientation === 'horizontal' ? 'Rotate to vertical' : 'Rotate to horizontal';
+    strokes = [];
+    requestAnimationFrame(() => {
+      resizeCanvas();
+      renderPegs();
+    });
+  }
+  rotateToggle.addEventListener('click', () => {
+    orientation = orientation === 'horizontal' ? 'vertical' : 'horizontal';
+    applyOrientation();
+  });
+
+  // ---------------- Save / load ----------------
+  function getStorage() {
+    try { localStorage.setItem('__tb_test__', '1'); localStorage.removeItem('__tb_test__'); return localStorage; }
+    catch (e) { return null; }
+  }
+  const storage = getStorage();
+  let memoryStore = {};
+
+  function loadSaves() {
+    if (storage) { try { return JSON.parse(storage.getItem('tacticsBoardSaves') || '{}'); } catch (e) { return {}; } }
+    return memoryStore;
+  }
+  function writeSaves(obj) {
+    if (storage) { try { storage.setItem('tacticsBoardSaves', JSON.stringify(obj)); return; } catch (e) {} }
+    memoryStore = obj;
+  }
+
+  function captureState() {
+    return {
+      teamCount: state.teamCount,
+      showOpponents: state.showOpponents,
+      opponentCount: state.opponentCount,
+      showBall: state.showBall,
+      teamFormation: teamFormationSel.value,
+      oppFormation: oppFormationSel.value,
+      orientation: orientation,
+      pegs: pegs.map(p => ({ type: p.type, number: p.number, x: p.x, y: p.y }))
+    };
+  }
+
+  function applyState(saved) {
+    if (!saved || !Array.isArray(saved.pegs)) throw new Error('bad format');
+    state.teamCount = saved.teamCount || 7;
+    state.showOpponents = !!saved.showOpponents;
+    state.opponentCount = saved.opponentCount || 7;
+    state.showBall = !!saved.showBall;
+    document.getElementById('team-val').textContent = state.teamCount;
+    document.getElementById('opp-val').textContent = state.opponentCount;
+    oppToggle.checked = state.showOpponents;
+    ballToggle.checked = state.showBall;
+    oppSub.classList.toggle('open', state.showOpponents);
+    if (saved.teamFormation) teamFormationSel.value = saved.teamFormation;
+    if (saved.oppFormation) oppFormationSel.value = saved.oppFormation;
+    orientation = saved.orientation === 'vertical' ? 'vertical' : 'horizontal';
+    pegs = saved.pegs.map((p, i) => ({ id: i, type: p.type, number: p.number, x: p.x, y: p.y }));
+    selectedPegId = null;
+    applyOrientation();
+  }
+
+  function refreshSavesList() {
+    const saves = loadSaves();
+    const sel = document.getElementById('saves-select');
+    sel.innerHTML = '';
+    const placeholder = document.createElement('option');
+    placeholder.value = ''; placeholder.textContent = '\u2014 none saved \u2014';
+    sel.appendChild(placeholder);
+    Object.keys(saves).forEach(n => {
+      const o = document.createElement('option');
+      o.value = n; o.textContent = n;
+      sel.appendChild(o);
+    });
+    updateSaveButtons();
+  }
+  function updateSaveButtons() {
+    const has = !!document.getElementById('saves-select').value;
+    document.getElementById('load-btn').disabled = !has;
+    document.getElementById('delete-btn').disabled = !has;
+  }
+
+  document.getElementById('save-btn').addEventListener('click', () => {
+    const nameInput = document.getElementById('save-name');
+    let name = nameInput.value.trim();
+    const saves = loadSaves();
+    if (!name) name = 'Lineup ' + (Object.keys(saves).length + 1);
+    saves[name] = captureState();
+    writeSaves(saves);
+    refreshSavesList();
+    document.getElementById('saves-select').value = name;
+    nameInput.value = '';
+    updateSaveButtons();
+  });
+  document.getElementById('saves-select').addEventListener('change', updateSaveButtons);
+  document.getElementById('load-btn').addEventListener('click', () => {
+    const name = document.getElementById('saves-select').value;
+    if (!name) return;
+    const saves = loadSaves();
+    if (saves[name]) applyState(saves[name]);
+  });
+  document.getElementById('delete-btn').addEventListener('click', () => {
+    const name = document.getElementById('saves-select').value;
+    if (!name) return;
+    const saves = loadSaves();
+    delete saves[name];
+    writeSaves(saves);
+    refreshSavesList();
+  });
+  document.getElementById('export-btn').addEventListener('click', () => {
+    const data = JSON.stringify(captureState(), null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'tactics-board-lineup.json';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
+  document.getElementById('import-btn').addEventListener('click', () => { document.getElementById('import-file').click(); });
+  document.getElementById('import-file').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try { applyState(JSON.parse(reader.result)); }
+      catch (err) { alert('That file does not look like a Tactics Board export.'); }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  });
+
+  if (!storage) document.getElementById('storage-note').style.display = 'block';
+
+  // ---------------- Resize + init ----------------
+  const ro = new ResizeObserver(() => resizeCanvas());
+  ro.observe(fieldContainer);
+  window.addEventListener('resize', resizeCanvas);
+
+  refreshSavesList();
+  resizeCanvas();
+  regenerateAll();
+
+})();
+</script>
+
+</body>
+</html>
