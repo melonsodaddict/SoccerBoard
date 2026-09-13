@@ -98,6 +98,12 @@
   select { flex: 1; }
   input[type="text"] { flex: 1; }
 
+  input[type="range"] {
+    width: 100%;
+    accent-color: var(--chalk);
+    height: 20px;
+  }
+
   .stepper {
     display: flex;
     align-items: center;
@@ -319,6 +325,16 @@
     <hr class="div">
 
     <div class="group">
+      <div class="row">
+        <span class="row-label">Peg size</span>
+        <span class="row-label" id="peg-size-val">2.0x</span>
+      </div>
+      <input type="range" id="peg-size-slider" min="1" max="3" step="0.1" value="2">
+    </div>
+
+    <hr class="div">
+
+    <div class="group">
       <div class="group-title">Saved lineups</div>
       <div class="row">
         <input type="text" id="save-name" placeholder="Lineup name">
@@ -432,6 +448,7 @@
     mode: 'move',
     drawColor: '#f5d442',
     drawWidth: 5,
+    pegScale: 2,
   };
 
   let orientation = 'vertical'; // 'horizontal' | 'vertical'
@@ -601,8 +618,8 @@
 
   function updatePegSize() {
     const rect = fieldContainer.getBoundingClientRect();
-    const size = Math.max(18, Math.min(34, rect.width * 0.032));
-    fieldContainer.style.setProperty('--peg-size', size + 'px');
+    const base = Math.max(18, Math.min(34, rect.width * 0.032));
+    fieldContainer.style.setProperty('--peg-size', (base * state.pegScale) + 'px');
   }
 
   function resizeCanvas() {
@@ -717,6 +734,14 @@
 
   document.getElementById('reset-positions').addEventListener('click', resetToBaseline);
   document.getElementById('reset-quick').addEventListener('click', resetToBaseline);
+
+  const pegSizeSlider = document.getElementById('peg-size-slider');
+  const pegSizeVal = document.getElementById('peg-size-val');
+  pegSizeSlider.addEventListener('input', () => {
+    state.pegScale = parseFloat(pegSizeSlider.value);
+    pegSizeVal.textContent = state.pegScale.toFixed(1) + 'x';
+    updatePegSize();
+  });
 
   const modeToggle = document.getElementById('mode-toggle');
   modeToggle.querySelectorAll('button').forEach(btn => {
