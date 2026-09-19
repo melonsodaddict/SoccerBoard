@@ -237,16 +237,21 @@
   </div>
   <button class="btn" id="clear-quick">Clear</button>
   <div class="toolbar-divider"></div>
+  <div class="stepper" id="team-stepper-quick" title="Your team's players">
+    <button data-dir="-1" aria-label="Fewer players">&minus;</button>
+    <span class="val" id="team-val-quick">7</span>
+    <button data-dir="1" aria-label="More players">+</button>
+  </div>
   <button class="btn toggle-btn active" id="ball-quick">Ball</button>
   <button class="btn toggle-btn active" id="opp-quick">Opponents</button>
   <button class="btn" id="reset-quick">Reset</button>
   <div class="toolbar-divider"></div>
-  <button class="btn" id="sidebar-toggle">Hide sidebar</button>
+  <button class="btn" id="sidebar-toggle">Show sidebar</button>
   <button class="btn" id="rotate-toggle">Rotate to horizontal</button>
 </div>
 
 <div id="app">
-  <div id="sidebar">
+  <div id="sidebar" class="hidden">
 
     <div class="group">
       <div class="group-title">Your team</div>
@@ -683,6 +688,11 @@
   document.getElementById('clear-btn').addEventListener('click', clearDrawing);
   document.getElementById('clear-quick').addEventListener('click', clearDrawing);
 
+  function syncTeamVal() {
+    document.getElementById('team-val').textContent = state.teamCount;
+    document.getElementById('team-val-quick').textContent = state.teamCount;
+  }
+
   function wireStepper(id, key, min, max, onChange) {
     const wrap = document.getElementById(id);
     const valEl = wrap.querySelector('.val');
@@ -695,11 +705,19 @@
       });
     });
   }
-  wireStepper('team-stepper', 'teamCount', 1, 11, () => { teamFormationSel.value = 'free'; regenerateAll(); });
+  function bumpTeamCount(delta) {
+    state.teamCount = Math.min(11, Math.max(1, state.teamCount + delta));
+    syncTeamVal();
+    teamFormationSel.value = 'free';
+    regenerateAll();
+  }
+  document.querySelectorAll('#team-stepper button, #team-stepper-quick button').forEach(btn => {
+    btn.addEventListener('click', () => bumpTeamCount(parseInt(btn.dataset.dir, 10)));
+  });
   wireStepper('opp-stepper', 'opponentCount', 1, 11, () => { oppFormationSel.value = 'free'; regenerateAll(); });
 
   teamFormationSel.addEventListener('change', () => {
-    if (teamFormationSel.value !== 'free') { state.teamCount = 7; document.getElementById('team-val').textContent = 7; }
+    if (teamFormationSel.value !== 'free') { state.teamCount = 7; syncTeamVal(); }
     regenerateAll();
   });
   oppFormationSel.addEventListener('change', () => {
@@ -836,7 +854,7 @@
     state.showOpponents = !!saved.showOpponents;
     state.opponentCount = saved.opponentCount || 7;
     state.showBall = !!saved.showBall;
-    document.getElementById('team-val').textContent = state.teamCount;
+    syncTeamVal();
     document.getElementById('opp-val').textContent = state.opponentCount;
     oppToggle.checked = state.showOpponents;
     oppQuick.classList.toggle('active', state.showOpponents);
