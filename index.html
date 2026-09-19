@@ -199,6 +199,13 @@
   #pegs-layer { pointer-events: auto; }
   #pegs-layer.locked { pointer-events: none; }
 
+  #field-container, .pitch-svg, #draw-canvas, #pegs-layer, .peg {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
   .peg {
     position: absolute;
     width: var(--peg-size, 30px); height: var(--peg-size, 30px);
