@@ -246,7 +246,7 @@
   <div class="toolbar-divider"></div>
   <div class="stepper" id="team-stepper-quick" title="Your team's players">
     <button data-dir="-1" aria-label="Fewer players">&minus;</button>
-    <span class="val" id="team-val-quick">7</span>
+    <span class="val" id="team-val-quick">6</span>
     <button data-dir="1" aria-label="More players">+</button>
   </div>
   <button class="btn toggle-btn active" id="ball-quick">Ball</button>
@@ -266,7 +266,7 @@
         <span class="row-label">Players</span>
         <div class="stepper" id="team-stepper">
           <button data-dir="-1" aria-label="Decrease">&minus;</button>
-          <span class="val" id="team-val">7</span>
+          <span class="val" id="team-val">6</span>
           <button data-dir="1" aria-label="Increase">+</button>
         </div>
       </div>
@@ -274,11 +274,19 @@
         <span class="row-label">Formation</span>
         <select id="team-formation">
           <option value="free">Free (grid)</option>
-          <option value="2-3-1">2-3-1</option>
-          <option value="3-2-1" selected>3-2-1</option>
-          <option value="3-1-2">3-1-2</option>
-          <option value="2-1-3">2-1-3</option>
-          <option value="1-3-2">1-3-2</option>
+          <optgroup label="6v6">
+            <option value="2-1-2" selected>2-1-2</option>
+            <option value="3-1-1">3-1-1</option>
+            <option value="1-1-3">1-1-3</option>
+            <option value="2-2-1">2-2-1</option>
+          </optgroup>
+          <optgroup label="7v7">
+            <option value="2-3-1">2-3-1</option>
+            <option value="3-2-1">3-2-1</option>
+            <option value="3-1-2">3-1-2</option>
+            <option value="2-1-3">2-1-3</option>
+            <option value="1-3-2">1-3-2</option>
+          </optgroup>
         </select>
       </div>
     </div>
@@ -298,7 +306,7 @@
           <span class="row-label">Opponent players</span>
           <div class="stepper" id="opp-stepper">
             <button data-dir="-1" aria-label="Decrease">&minus;</button>
-            <span class="val" id="opp-val">7</span>
+            <span class="val" id="opp-val">6</span>
             <button data-dir="1" aria-label="Increase">+</button>
           </div>
         </div>
@@ -306,11 +314,19 @@
           <span class="row-label">Formation</span>
           <select id="opp-formation">
             <option value="free">Free (grid)</option>
-            <option value="2-3-1">2-3-1</option>
-            <option value="3-2-1" selected>3-2-1</option>
-            <option value="3-1-2">3-1-2</option>
-            <option value="2-1-3">2-1-3</option>
-            <option value="1-3-2">1-3-2</option>
+            <optgroup label="6v6">
+              <option value="2-1-2" selected>2-1-2</option>
+              <option value="3-1-1">3-1-1</option>
+              <option value="1-1-3">1-1-3</option>
+              <option value="2-2-1">2-2-1</option>
+            </optgroup>
+            <optgroup label="7v7">
+              <option value="2-3-1">2-3-1</option>
+              <option value="3-2-1">3-2-1</option>
+              <option value="3-1-2">3-1-2</option>
+              <option value="2-1-3">2-1-3</option>
+              <option value="1-3-2">1-3-2</option>
+            </optgroup>
           </select>
         </div>
       </div>
@@ -339,9 +355,9 @@
     <div class="group">
       <div class="row">
         <span class="row-label">Peg size</span>
-        <span class="row-label" id="peg-size-val">2.0x</span>
+        <span class="row-label" id="peg-size-val">3.0x</span>
       </div>
-      <input type="range" id="peg-size-slider" min="1" max="3" step="0.1" value="2">
+      <input type="range" id="peg-size-slider" min="1" max="3" step="0.1" value="3">
     </div>
 
     <hr class="div">
@@ -445,6 +461,12 @@
   const svgNS = 'http://www.w3.org/2000/svg';
 
   const FORMATIONS = {
+    // 6v6 (GK + 5)
+    '2-1-2': [ {x:8,y:50}, {x:18,y:32},{x:18,y:68}, {x:31,y:50}, {x:43,y:33},{x:43,y:67} ],
+    '3-1-1': [ {x:8,y:50}, {x:18,y:20},{x:18,y:50},{x:18,y:80}, {x:31,y:50}, {x:44,y:50} ],
+    '1-1-3': [ {x:8,y:50}, {x:17,y:50}, {x:30,y:50}, {x:43,y:20},{x:43,y:50},{x:43,y:80} ],
+    '2-2-1': [ {x:8,y:50}, {x:18,y:32},{x:18,y:68}, {x:31,y:32},{x:31,y:68}, {x:44,y:50} ],
+    // 7v7 (GK + 6)
     '2-3-1': [ {x:8,y:50}, {x:18,y:32},{x:18,y:68}, {x:32,y:20},{x:32,y:50},{x:32,y:80}, {x:45,y:50} ],
     '3-2-1': [ {x:8,y:50}, {x:17,y:20},{x:17,y:50},{x:17,y:80}, {x:30,y:35},{x:30,y:65}, {x:45,y:50} ],
     '3-1-2': [ {x:8,y:50}, {x:17,y:20},{x:17,y:50},{x:17,y:80}, {x:30,y:50}, {x:42,y:35},{x:42,y:65} ],
@@ -453,14 +475,14 @@
   };
 
   const state = {
-    teamCount: 7,
+    teamCount: 6,
     showOpponents: true,
-    opponentCount: 7,
+    opponentCount: 6,
     showBall: true,
     mode: 'move',
     drawColor: '#f5d442',
     drawWidth: 5,
-    pegScale: 2,
+    pegScale: 3,
   };
 
   let orientation = 'vertical'; // 'horizontal' | 'vertical'
@@ -543,12 +565,12 @@
 
   function teamPositions() {
     const sel = teamFormationSel.value;
-    if (sel !== 'free' && FORMATIONS[sel] && state.teamCount === 7) return formationPositions(sel, false);
+    if (sel !== 'free' && FORMATIONS[sel] && state.teamCount === FORMATIONS[sel].length) return formationPositions(sel, false);
     return gridPositions(state.teamCount, 6, 46, 8, 92);
   }
   function oppPositions() {
     const sel = oppFormationSel.value;
-    if (sel !== 'free' && FORMATIONS[sel] && state.opponentCount === 7) return formationPositions(sel, true);
+    if (sel !== 'free' && FORMATIONS[sel] && state.opponentCount === FORMATIONS[sel].length) return formationPositions(sel, true);
     return gridPositions(state.opponentCount, 54, 94, 8, 92);
   }
 
@@ -724,11 +746,11 @@
   wireStepper('opp-stepper', 'opponentCount', 1, 11, () => { oppFormationSel.value = 'free'; regenerateAll(); });
 
   teamFormationSel.addEventListener('change', () => {
-    if (teamFormationSel.value !== 'free') { state.teamCount = 7; syncTeamVal(); }
+    if (teamFormationSel.value !== 'free') { state.teamCount = FORMATIONS[teamFormationSel.value].length; syncTeamVal(); }
     regenerateAll();
   });
   oppFormationSel.addEventListener('change', () => {
-    if (oppFormationSel.value !== 'free') { state.opponentCount = 7; document.getElementById('opp-val').textContent = 7; }
+    if (oppFormationSel.value !== 'free') { state.opponentCount = FORMATIONS[oppFormationSel.value].length; document.getElementById('opp-val').textContent = state.opponentCount; }
     regenerateAll();
   });
 
@@ -857,9 +879,9 @@
 
   function applyState(saved) {
     if (!saved || !Array.isArray(saved.pegs)) throw new Error('bad format');
-    state.teamCount = saved.teamCount || 7;
+    state.teamCount = saved.teamCount || 6;
     state.showOpponents = !!saved.showOpponents;
-    state.opponentCount = saved.opponentCount || 7;
+    state.opponentCount = saved.opponentCount || 6;
     state.showBall = !!saved.showBall;
     syncTeamVal();
     document.getElementById('opp-val').textContent = state.opponentCount;
