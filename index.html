@@ -63,6 +63,10 @@
     border-color: var(--chalk);
     color: #24230f;
   }
+  .toolbar-swatches { gap: 6px; align-items: center; }
+  .toolbar-swatches .swatch { width: 28px; height: 28px; }
+  .swatch.dimmed { opacity: 0.45; }
+  #draw-canvas.erasing { cursor: cell; }
 
   #app { flex: 1; display: flex; min-height: 0; }
 
@@ -223,6 +227,45 @@
   .peg.opp { background: var(--opp); border: 2px solid var(--opp-dark); }
   .peg.ball { background: #f5f5f0; border: 2px solid #24230f; font-size: calc(var(--peg-size, 30px) * 0.6); }
   .peg.selected { box-shadow: 0 0 0 3px var(--chalk), 0 2px 8px rgba(0,0,0,0.6); z-index: 5; }
+  .peg-label {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 50%;
+    transform: translateX(-50%);
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(0,0,0,0.68);
+    color: #fff;
+    font-size: max(12px, calc(var(--peg-size, 30px) * 0.24));
+    font-weight: 600;
+    line-height: 1.25;
+    pointer-events: none;
+  }
+
+  .peg-label.above { top: auto; bottom: calc(100% + 4px); }
+
+  .modal {
+    position: fixed; inset: 0; z-index: 100;
+    background: rgba(0,0,0,0.6);
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .modal.hidden { display: none; }
+  .modal-card {
+    width: 100%; max-width: 340px;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex; flex-direction: column; gap: 12px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+  }
+  .modal-title { font-size: 15px; font-weight: 600; }
+  .modal-card input[type="text"] { font-size: 16px; padding: 10px 12px; width: 100%; }
 
   @media (max-width: 860px) {
     #app { flex-direction: column; }
@@ -242,6 +285,8 @@
     <button data-mode="move" class="active">Move</button>
     <button data-mode="draw">Draw</button>
   </div>
+  <div class="swatches toolbar-swatches" id="toolbar-swatches"></div>
+  <button class="btn toggle-btn" id="erase-quick">Erase</button>
   <button class="btn" id="clear-quick">Clear</button>
   <div class="toolbar-divider"></div>
   <div class="stepper" id="team-stepper-quick" title="Your team's players">
@@ -249,8 +294,8 @@
     <span class="val" id="team-val-quick">6</span>
     <button data-dir="1" aria-label="More players">+</button>
   </div>
-  <button class="btn toggle-btn active" id="ball-quick">Ball</button>
-  <button class="btn toggle-btn active" id="opp-quick">Opponents</button>
+  <button class="btn toggle-btn" id="ball-quick">Ball</button>
+  <button class="btn toggle-btn" id="opp-quick">Opponents</button>
   <button class="btn" id="reset-quick">Reset</button>
   <div class="toolbar-divider"></div>
   <button class="btn" id="sidebar-toggle">Show sidebar</button>
@@ -297,11 +342,11 @@
       <div class="row">
         <span class="row-label">Show opponents</span>
         <label class="switch">
-          <input type="checkbox" id="opp-toggle" checked>
+          <input type="checkbox" id="opp-toggle">
           <span class="track"></span>
         </label>
       </div>
-      <div class="collapsible open" id="opp-sub">
+      <div class="collapsible" id="opp-sub">
         <div class="row">
           <span class="row-label">Opponent players</span>
           <div class="stepper" id="opp-stepper">
@@ -338,7 +383,7 @@
       <div class="row">
         <span class="row-label">Show ball</span>
         <label class="switch">
-          <input type="checkbox" id="ball-toggle" checked>
+          <input type="checkbox" id="ball-toggle">
           <span class="track"></span>
         </label>
       </div>
@@ -455,6 +500,18 @@
   </div>
 </div>
 
+<div class="modal hidden" id="name-dialog" role="dialog" aria-modal="true" aria-labelledby="name-title">
+  <div class="modal-card">
+    <div class="modal-title" id="name-title">Name player</div>
+    <input type="text" id="name-input" maxlength="16" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="Player name">
+    <div class="btn-row">
+      <button class="btn" id="name-clear">Clear</button>
+      <button class="btn" id="name-cancel">Cancel</button>
+      <button class="btn toggle-btn active" id="name-save">Save</button>
+    </div>
+  </div>
+</div>
+
 <script>
 (function(){
 
@@ -476,12 +533,15 @@
 
   const state = {
     teamCount: 6,
-    showOpponents: true,
+    showOpponents: false,
     opponentCount: 6,
-    showBall: true,
+    showBall: false,
+    teamNames: [],
+    oppNames: [],
     mode: 'move',
     drawColor: '#f5d442',
     drawWidth: 5,
+    erasing: false,
     pegScale: 3,
   };
 
@@ -492,7 +552,7 @@
   let strokes = [];
   let currentStroke = null;
 
-  const COLORS = ['#f5d442', '#ffffff', '#ff5252', '#42c9ff'];
+  const COLORS = ['#42a5ff', '#f5d442', '#ff5252', '#ffffff'];
 
   const fieldContainer = document.getElementById('field-container');
   const pegsLayer = document.getElementById('pegs-layer');
@@ -594,6 +654,17 @@
     renderPegs();
   }
 
+  // Names are stored by jersey number so they survive formation/count changes
+  function getName(peg) {
+    if (peg.type === 'team') return state.teamNames[peg.number - 1] || '';
+    if (peg.type === 'opp') return state.oppNames[peg.number - 1] || '';
+    return '';
+  }
+  function setName(peg, name) {
+    const arr = peg.type === 'team' ? state.teamNames : state.oppNames;
+    arr[peg.number - 1] = name;
+  }
+
   function renderPegs() {
     pegsLayer.innerHTML = '';
     pegs.forEach(peg => {
@@ -603,6 +674,13 @@
       el.style.left = s.x + '%';
       el.style.top = s.y + '%';
       el.textContent = peg.type === 'ball' ? '\u26BD' : peg.number;
+      const nm = getName(peg);
+      if (nm) {
+        const lab = document.createElement('span');
+        lab.className = 'peg-label' + (s.y > 78 ? ' above' : '');
+        lab.textContent = nm;
+        el.appendChild(lab);
+      }
       attachDrag(el, peg);
       pegsLayer.appendChild(el);
     });
@@ -613,6 +691,8 @@
     Array.from(pegsLayer.children).forEach((el, i) => { el.classList.toggle('selected', pegs[i].id === id); });
   }
 
+  let lastTap = { id: null, t: 0 };
+
   function attachDrag(el, peg) {
     el.addEventListener('pointerdown', (e) => {
       if (state.mode !== 'move') return;
@@ -621,7 +701,11 @@
       el.setPointerCapture(e.pointerId);
       selectPeg(peg.id);
 
+      const startX = e.clientX, startY = e.clientY;
+      let moved = false;
+
       const onMove = (ev) => {
+        if (Math.hypot(ev.clientX - startX, ev.clientY - startY) > 8) moved = true;
         const rect = fieldContainer.getBoundingClientRect();
         let dx = ((ev.clientX - rect.left) / rect.width) * 100;
         let dy = ((ev.clientY - rect.top) / rect.height) * 100;
@@ -632,10 +716,18 @@
         const c = toCanonical(dx, dy);
         peg.x = c.x; peg.y = c.y;
       };
-      const onUp = () => {
+      const onUp = (ev) => {
         el.removeEventListener('pointermove', onMove);
         el.removeEventListener('pointerup', onUp);
         el.removeEventListener('pointercancel', onUp);
+        if (ev.type !== 'pointerup' || moved || peg.type === 'ball') { lastTap = { id: null, t: 0 }; return; }
+        const now = Date.now();
+        if (lastTap.id === peg.id && now - lastTap.t < 400) {
+          lastTap = { id: null, t: 0 };
+          openNameDialog(peg);
+        } else {
+          lastTap = { id: peg.id, t: now };
+        }
       };
       el.addEventListener('pointermove', onMove);
       el.addEventListener('pointerup', onUp);
@@ -673,7 +765,8 @@
     ctx.clearRect(0, 0, rect.width, rect.height);
     strokes.forEach(s => {
       if (s.points.length < 1) return;
-      ctx.strokeStyle = s.color;
+      ctx.globalCompositeOperation = s.erase ? 'destination-out' : 'source-over';
+      ctx.strokeStyle = s.erase ? '#000' : s.color;
       ctx.lineWidth = s.width;
       ctx.lineJoin = 'round';
       ctx.lineCap = 'round';
@@ -684,6 +777,7 @@
       });
       ctx.stroke();
     });
+    ctx.globalCompositeOperation = 'source-over';
     const disabled = strokes.length === 0;
     document.getElementById('undo-btn').disabled = disabled;
     document.getElementById('clear-btn').disabled = disabled;
@@ -698,7 +792,9 @@
   canvas.addEventListener('pointerdown', (e) => {
     if (state.mode !== 'draw') return;
     canvas.setPointerCapture(e.pointerId);
-    currentStroke = { color: state.drawColor, width: state.drawWidth, points: [] };
+    currentStroke = state.erasing
+      ? { erase: true, width: 34, points: [] }
+      : { color: state.drawColor, width: state.drawWidth, points: [] };
     addPoint(e.clientX, e.clientY);
     strokes.push(currentStroke);
     redrawStrokes();
@@ -761,18 +857,36 @@
   const ballToggle = document.getElementById('ball-toggle');
   const ballQuick = document.getElementById('ball-quick');
 
+  // Add/remove only the opponent or ball pegs so everyone else keeps their position
+  function withOptionalPegs(list) {
+    const team = list.filter(p => p.type === 'team');
+    let opp = list.filter(p => p.type === 'opp');
+    let ball = list.filter(p => p.type === 'ball');
+    if (!state.showOpponents) opp = [];
+    else if (!opp.length) opp = oppPositions().map((p, i) => ({ type: 'opp', number: i + 1, x: p.x, y: p.y }));
+    if (!state.showBall) ball = [];
+    else if (!ball.length) ball = [{ type: 'ball', number: null, x: 50, y: 50 }];
+    return [...team, ...opp, ...ball].map((p, i) => ({ id: i, type: p.type, number: p.number, x: p.x, y: p.y }));
+  }
+  function applyOptionalToggles() {
+    pegs = withOptionalPegs(pegs);
+    baselinePegs = withOptionalPegs(baselinePegs || pegs);
+    selectedPegId = null;
+    renderPegs();
+  }
+
   function setShowOpponents(val) {
     state.showOpponents = val;
     oppToggle.checked = val;
     oppQuick.classList.toggle('active', val);
     oppSub.classList.toggle('open', val);
-    regenerateAll();
+    applyOptionalToggles();
   }
   function setShowBall(val) {
     state.showBall = val;
     ballToggle.checked = val;
     ballQuick.classList.toggle('active', val);
-    regenerateAll();
+    applyOptionalToggles();
   }
   oppToggle.addEventListener('change', () => setShowOpponents(oppToggle.checked));
   oppQuick.addEventListener('click', () => setShowOpponents(!state.showOpponents));
@@ -791,27 +905,50 @@
   });
 
   const modeToggle = document.getElementById('mode-toggle');
-  modeToggle.querySelectorAll('button').forEach(btn => {
-    btn.addEventListener('click', () => {
-      state.mode = btn.dataset.mode;
-      modeToggle.querySelectorAll('button').forEach(b => b.classList.toggle('active', b === btn));
-      pegsLayer.classList.toggle('locked', state.mode !== 'move');
-      canvas.style.pointerEvents = state.mode === 'draw' ? 'auto' : 'none';
+  const eraseQuick = document.getElementById('erase-quick');
+
+  function setMode(mode) {
+    state.mode = mode;
+    modeToggle.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+    pegsLayer.classList.toggle('locked', mode !== 'move');
+    canvas.style.pointerEvents = mode === 'draw' ? 'auto' : 'none';
+  }
+  function refreshPenUI() {
+    eraseQuick.classList.toggle('active', state.erasing);
+    canvas.classList.toggle('erasing', state.erasing);
+    document.querySelectorAll('.swatch').forEach(s => {
+      s.classList.toggle('active', !state.erasing && s.dataset.color === state.drawColor);
+      s.classList.toggle('dimmed', state.erasing);
     });
+  }
+  modeToggle.querySelectorAll('button').forEach(btn => {
+    btn.addEventListener('click', () => setMode(btn.dataset.mode));
+  });
+  eraseQuick.addEventListener('click', () => {
+    state.erasing = !state.erasing;
+    if (state.erasing) setMode('draw');
+    refreshPenUI();
   });
 
-  const swatchesEl = document.getElementById('swatches');
-  COLORS.forEach((c, i) => {
-    const b = document.createElement('button');
-    b.className = 'swatch' + (i === 0 ? ' active' : '');
-    b.style.background = c;
-    b.addEventListener('click', () => {
-      state.drawColor = c;
-      swatchesEl.querySelectorAll('.swatch').forEach(s => s.classList.remove('active'));
-      b.classList.add('active');
+  // Color swatches live in both the toolbar and the sidebar; picking one switches to pen + draw mode
+  ['toolbar-swatches', 'swatches'].forEach(id => {
+    const wrap = document.getElementById(id);
+    COLORS.forEach(c => {
+      const b = document.createElement('button');
+      b.className = 'swatch';
+      b.dataset.color = c;
+      b.style.background = c;
+      b.setAttribute('aria-label', 'Marker color ' + c);
+      b.addEventListener('click', () => {
+        state.drawColor = c;
+        state.erasing = false;
+        setMode('draw');
+        refreshPenUI();
+      });
+      wrap.appendChild(b);
     });
-    swatchesEl.appendChild(b);
   });
+  refreshPenUI();
 
   document.getElementById('widths').querySelectorAll('.width-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -847,6 +984,37 @@
     applyOrientation();
   });
 
+  // ---------------- Name dialog (double-click / double-tap a peg) ----------------
+  const nameDialog = document.getElementById('name-dialog');
+  const nameInput = document.getElementById('name-input');
+  const nameTitle = document.getElementById('name-title');
+  let namingPeg = null;
+
+  function openNameDialog(peg) {
+    namingPeg = peg;
+    nameTitle.textContent = (peg.type === 'opp' ? 'Name opponent ' : 'Name player ') + peg.number;
+    nameInput.value = getName(peg);
+    nameDialog.classList.remove('hidden');
+    nameInput.focus();
+    nameInput.select();
+  }
+  function closeNameDialog() {
+    nameDialog.classList.add('hidden');
+    nameInput.blur();
+    namingPeg = null;
+  }
+  function commitName(value) {
+    if (namingPeg) { setName(namingPeg, value.trim().slice(0, 16)); renderPegs(); }
+    closeNameDialog();
+  }
+  document.getElementById('name-save').addEventListener('click', () => commitName(nameInput.value));
+  document.getElementById('name-clear').addEventListener('click', () => commitName(''));
+  document.getElementById('name-cancel').addEventListener('click', closeNameDialog);
+  nameInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); commitName(nameInput.value); }
+    else if (e.key === 'Escape') { e.preventDefault(); closeNameDialog(); }
+  });
+
   // ---------------- Save / load ----------------
   function getStorage() {
     try { localStorage.setItem('__tb_test__', '1'); localStorage.removeItem('__tb_test__'); return localStorage; }
@@ -873,7 +1041,7 @@
       teamFormation: teamFormationSel.value,
       oppFormation: oppFormationSel.value,
       orientation: orientation,
-      pegs: pegs.map(p => ({ type: p.type, number: p.number, x: p.x, y: p.y }))
+      pegs: pegs.map(p => ({ type: p.type, number: p.number, name: getName(p), x: p.x, y: p.y }))
     };
   }
 
@@ -894,6 +1062,11 @@
     if (saved.oppFormation) oppFormationSel.value = saved.oppFormation;
     orientation = saved.orientation === 'horizontal' ? 'horizontal' : 'vertical';
     pegs = saved.pegs.map((p, i) => ({ id: i, type: p.type, number: p.number, x: p.x, y: p.y }));
+    state.teamNames = []; state.oppNames = [];
+    saved.pegs.forEach(p => {
+      if (p.type === 'team' && p.name) state.teamNames[p.number - 1] = String(p.name).slice(0, 16);
+      if (p.type === 'opp' && p.name) state.oppNames[p.number - 1] = String(p.name).slice(0, 16);
+    });
     baselinePegs = clonePegs(pegs);
     selectedPegId = null;
     applyOrientation();
